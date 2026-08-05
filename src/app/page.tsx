@@ -101,10 +101,10 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href="/vocabulary"
               className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3.5 rounded-xl text-base font-medium hover:opacity-90 transition-opacity"
             >
-              Start learning for free
+              Start learning — no signup
               <ArrowRight className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -191,14 +191,14 @@ export default function LandingPage() {
             Start your German journey tonight
           </h2>
           <p className="text-primary-foreground/80 mb-8 max-w-lg mx-auto">
-            Every day you wait is a day you could have learned 30 new German words.
-            Your AI tutor is ready.
+            Thirty German words, a quick check, and your first stars. No account,
+            no email, no card — just open it and start.
           </p>
           <Link
-            href="/signup"
+            href="/vocabulary"
             className="inline-flex items-center gap-2 bg-accent text-accent-foreground px-8 py-3.5 rounded-xl text-base font-semibold hover:opacity-90 transition-opacity"
           >
-            Create free account
+            Learn your first 30 words
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>

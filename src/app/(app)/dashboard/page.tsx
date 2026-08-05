@@ -24,6 +24,7 @@ import {
   countDueFlashcards,
   getOpenRepairCount,
   getCurriculumDay,
+  isGuest,
 } from "@/lib/db";
 import { MAX_SESSION_POINTS, LEVEL_LABELS, LEVEL_DAYS, levelProgress } from "@/lib/stars";
 import { LEVELS } from "@/lib/types";
@@ -54,12 +55,13 @@ export default function DashboardPage() {
   const [due, setDue] = useState(0);
   const [repairs, setRepairs] = useState(0);
   const [day, setDay] = useState<CurriculumDay | null>(null);
+  const [guest, setGuest] = useState(false);
 
   useEffect(() => {
     (async () => {
       const p = await getProfile();
-      if (!p) return setLoading(false);
       setProfile(p);
+      setGuest(await isGuest());
 
       const [s, d, r, c] = await Promise.all([
         getOrCreateSession(p),
@@ -85,22 +87,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="max-w-md mx-auto text-center py-24">
-        <h1 className="text-xl font-bold text-foreground mb-2">Not signed in</h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          Log in to see your progress and today&apos;s plan.
-        </p>
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-medium hover:opacity-90"
-        >
-          Log in
-        </Link>
-      </div>
-    );
-  }
+  if (!profile) return null;
 
   const doneKinds = new Set(tasks.filter((t) => t.completed).map((t) => t.kind));
   const pointsToday = session?.points_earned ?? 0;
@@ -131,6 +118,21 @@ export default function DashboardPage() {
           )}
         </p>
       </div>
+
+      {guest && (
+        <div className="flex flex-wrap items-center gap-3 mb-6 px-4 py-3 rounded-xl border border-border bg-card">
+          <p className="text-sm text-muted-foreground flex-1 min-w-[240px]">
+            You&apos;re learning as a guest — progress is saved in this browser only.
+            Create an account to keep it safe and join the leaderboard.
+          </p>
+          <Link
+            href="/signup"
+            className="text-sm bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity whitespace-nowrap"
+          >
+            Save my progress
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {stats.map((s) => (

@@ -81,7 +81,6 @@ export default function VocabularyPage() {
   useEffect(() => {
     (async () => {
       const p = await getProfile();
-      if (!p) return setPhase("empty");
       setProfile(p);
 
       const w = await getWordsForDay(p.current_level, p.current_day);
@@ -99,8 +98,16 @@ export default function VocabularyPage() {
       if (!profile || !session) return;
       setSaving(true);
 
+      // The quiz samples 12 of the 30, but all 30 were studied — every one
+      // of them enters spaced repetition. Untested words start on the normal
+      // one-day interval; tested ones carry their real result.
       const score = finalResults.filter((r) => r.correct).length / finalResults.length;
-      await saveVocabularyResults(profile.id, finalResults);
+      const tested = new Set(finalResults.map((r) => r.word.id));
+      const untested = words
+        .filter((w) => !tested.has(w.id))
+        .map((word) => ({ word, correct: true }));
+
+      await saveVocabularyResults([...finalResults, ...untested]);
       const res = await completeTask({
         profile,
         session,
@@ -189,7 +196,7 @@ export default function VocabularyPage() {
           <div className="flex items-start justify-between gap-4 mb-1">
             <div>
               {w.article && (
-                <span className="text-lg text-muted-foreground mr-2">{w.article}</span>
+                <span className="text-lg text-muted-foreground">{w.article} </span>
               )}
               <span className="text-3xl font-bold text-foreground">{w.german}</span>
             </div>
@@ -280,7 +287,7 @@ export default function VocabularyPage() {
           </p>
           <p className="text-3xl font-bold text-foreground">
             {promptArticle && (
-              <span className="text-muted-foreground text-xl mr-2">{promptArticle}</span>
+              <span className="text-muted-foreground text-xl">{promptArticle} </span>
             )}
             {prompt}
           </p>
@@ -364,7 +371,7 @@ export default function VocabularyPage() {
               <div key={word.id} className="px-5 py-3 flex items-baseline justify-between gap-4">
                 <span className="text-sm text-foreground">
                   {word.article && (
-                    <span className="text-muted-foreground mr-1.5">{word.article}</span>
+                    <span className="text-muted-foreground">{word.article} </span>
                   )}
                   {word.german}
                 </span>

@@ -18,10 +18,11 @@ import {
   ClipboardCheck,
   Zap,
   LogOut,
+  UserPlus,
   Menu,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -44,9 +45,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => setSignedIn(!!data.user));
+  }, [pathname]);
+
   async function logout() {
     await createClient().auth.signOut();
-    router.push("/login");
+    router.push("/");
     router.refresh();
   }
 
@@ -106,13 +115,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Logout */}
         <div className="p-3 border-t border-border">
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors"
-          >
-            <LogOut className="w-4.5 h-4.5" />
-            Log out
-          </button>
+          {signedIn ? (
+            <button
+              onClick={logout}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors"
+            >
+              <LogOut className="w-4.5 h-4.5" />
+              Log out
+            </button>
+          ) : (
+            <Link
+              href="/signup"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-primary hover:bg-primary-light w-full transition-colors"
+            >
+              <UserPlus className="w-4.5 h-4.5" />
+              Save my progress
+            </Link>
+          )}
         </div>
       </aside>
 

@@ -1,4 +1,5 @@
 import type { Stars, CertificateTier, Level } from "./types";
+import { todayLocal, addDays, daysBetween } from "./dates";
 
 // ============================================================
 // The star economy. Every rule in the blueprint lives here.
@@ -142,14 +143,11 @@ export function nextReview(state: ReviewState, stars: Stars): ReviewState & { ne
     ease_factor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
   );
 
-  const due = new Date();
-  due.setDate(due.getDate() + interval_days);
-
   return {
     ease_factor: Number(ease_factor.toFixed(2)),
     interval_days,
     repetitions,
-    next_review: due.toISOString().slice(0, 10),
+    next_review: addDays(interval_days),
   };
 }
 
@@ -167,14 +165,10 @@ export function updateStreak(
 ): { streak: number; broken: boolean } {
   if (!lastSessionDate) return { streak: 1, broken: false };
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const last = new Date(lastSessionDate);
-  last.setHours(0, 0, 0, 0);
+  // Both sides are local date strings — never mix in a UTC date here.
+  const days = daysBetween(lastSessionDate, todayLocal());
 
-  const days = Math.round((today.getTime() - last.getTime()) / 86_400_000);
-
-  if (days === 0) return { streak: currentStreak, broken: false };
+  if (days <= 0) return { streak: Math.max(1, currentStreak), broken: false };
   if (days === 1) return { streak: currentStreak + 1, broken: false };
   return { streak: 1, broken: true };
 }

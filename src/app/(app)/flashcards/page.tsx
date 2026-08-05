@@ -45,7 +45,6 @@ export default function FlashcardsPage() {
   useEffect(() => {
     (async () => {
       const p = await getProfile();
-      if (!p) return setPhase("empty");
       setProfile(p);
 
       const due = await getDueFlashcards(30);
@@ -165,8 +164,10 @@ export default function FlashcardsPage() {
             flipped ? "cursor-default" : "cursor-pointer hover:border-primary/40"
           }`}
         >
-          <div className="flex items-center gap-3 mb-2">
-            {w.article && <span className="text-xl text-muted-foreground">{w.article}</span>}
+          <div className="flex items-center gap-2 mb-2">
+            {w.article && (
+              <span className="text-xl text-muted-foreground">{w.article}&nbsp;</span>
+            )}
             <span className="text-4xl font-bold text-foreground">{w.german}</span>
             <span
               role="button"
