@@ -1,155 +1,299 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Flame,
   BookOpen,
-  Brain,
+  Star,
   Target,
   ArrowRight,
   MessageCircle,
   Zap,
-  Trophy,
   Clock,
   CheckCircle2,
   Circle,
+  Loader2,
+  Wrench,
+  Brain,
 } from "lucide-react";
+import {
+  getProfile,
+  getOrCreateSession,
+  getSessionTasks,
+  countDueFlashcards,
+  getOpenRepairCount,
+  getCurriculumDay,
+} from "@/lib/db";
+import { MAX_SESSION_POINTS, LEVEL_LABELS, LEVEL_DAYS, levelProgress } from "@/lib/stars";
+import { LEVELS } from "@/lib/types";
+import StarRating from "@/components/star-rating";
+import type { Profile, DailySession, SessionTask, CurriculumDay, Stars } from "@/lib/types";
 
-const stats = [
-  { label: "Day streak", value: "1", icon: Flame, color: "text-orange-500" },
-  { label: "Words learned", value: "0", icon: BookOpen, color: "text-blue-500" },
-  { label: "Lessons done", value: "0", icon: Trophy, color: "text-amber-500" },
-  { label: "Current level", value: "A1", icon: Target, color: "text-emerald-500" },
-];
+const PLAN = [
+  { kind: "repair", label: "Repair queue", detail: "Yesterday's weak items", time: "10 min", href: "/flashcards", icon: Wrench },
+  { kind: "vocabulary", label: "New vocabulary", detail: "30 words with sentences", time: "15 min", href: "/vocabulary", icon: Zap },
+  { kind: "lesson", label: "Core lesson", detail: "Grammar and reading", time: "30 min", href: "/lessons", icon: BookOpen },
+  { kind: "production", label: "Production task", detail: "Write from nothing", time: "15 min", href: "/writing", icon: Brain },
+  { kind: "speaking", label: "Speaking recording", detail: "Record, analyse, score", time: "15 min", href: "/speaking", icon: MessageCircle },
+  { kind: "closeout", label: "Close out", detail: "Bank the streak", time: "5 min", href: "/flashcards", icon: CheckCircle2 },
+] as const;
 
-const todayTasks = [
-  { time: "10 min", task: "Review flashcards", href: "/flashcards", done: false, icon: Brain },
-  { time: "15 min", task: "Learn 30 new words", href: "/vocabulary", done: false, icon: Zap },
-  { time: "30 min", task: "Daily lesson: Greetings & introductions", href: "/lessons", done: false, icon: BookOpen },
-  { time: "15 min", task: "Practice task", href: "/homework", done: false, icon: Target },
-  { time: "15 min", task: "Conversation practice", href: "/conversation", done: false, icon: MessageCircle },
-  { time: "5 min", task: "Quick review", href: "/flashcards", done: false, icon: CheckCircle2 },
-];
-
-const quickActions = [
-  { label: "Start today's lesson", href: "/lessons", icon: BookOpen, primary: true },
-  { label: "Practice vocabulary", href: "/vocabulary", icon: Zap, primary: false },
-  { label: "Chat in German", href: "/conversation", icon: MessageCircle, primary: false },
-  { label: "Review flashcards", href: "/flashcards", icon: Brain, primary: false },
-];
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 11) return "Guten Morgen";
+  if (h < 18) return "Guten Tag";
+  return "Guten Abend";
+}
 
 export default function DashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [session, setSession] = useState<DailySession | null>(null);
+  const [tasks, setTasks] = useState<SessionTask[]>([]);
+  const [due, setDue] = useState(0);
+  const [repairs, setRepairs] = useState(0);
+  const [day, setDay] = useState<CurriculumDay | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const p = await getProfile();
+      if (!p) return setLoading(false);
+      setProfile(p);
+
+      const [s, d, r, c] = await Promise.all([
+        getOrCreateSession(p),
+        countDueFlashcards(),
+        getOpenRepairCount(),
+        getCurriculumDay(p.current_level, p.current_day),
+      ]);
+
+      setSession(s);
+      setDue(d);
+      setRepairs(r);
+      setDay(c);
+      if (s) setTasks((await getSessionTasks(s.id)) as SessionTask[]);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="max-w-md mx-auto text-center py-24">
+        <h1 className="text-xl font-bold text-foreground mb-2">Not signed in</h1>
+        <p className="text-sm text-muted-foreground mb-6">
+          Log in to see your progress and today&apos;s plan.
+        </p>
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-medium hover:opacity-90"
+        >
+          Log in
+        </Link>
+      </div>
+    );
+  }
+
+  const doneKinds = new Set(tasks.filter((t) => t.completed).map((t) => t.kind));
+  const pointsToday = session?.points_earned ?? 0;
+  const progress = levelProgress(profile.current_level, profile.current_day);
+
+  const stats = [
+    { label: "Total points", value: profile.total_points.toLocaleString(), icon: Star, color: "text-amber-500" },
+    { label: "Day streak", value: profile.streak_count, icon: Flame, color: "text-orange-500" },
+    { label: "Words learned", value: profile.words_learned, icon: BookOpen, color: "text-blue-500" },
+    { label: "Level", value: profile.current_level, icon: Target, color: "text-emerald-500" },
+  ];
+
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Guten Abend!</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          {greeting()}
+          {profile.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}!
+        </h1>
         <p className="text-muted-foreground mt-1">
-          Ready for tonight&apos;s German session? Here&apos;s your plan.
+          {day ? (
+            <>
+              Day {profile.current_day} &middot; <span className="text-foreground">{day.title}</span>
+              {day.grammar_focus && ` — ${day.grammar_focus}`}
+            </>
+          ) : (
+            `Day ${profile.current_day} of ${profile.current_level}`
+          )}
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-card border border-border rounded-xl p-4"
-          >
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {stats.map((s) => (
+          <div key={s.label} className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
-              <stat.icon className={`w-4.5 h-4.5 ${stat.color}`} />
-              <span className="text-xs text-muted-foreground">{stat.label}</span>
+              <s.icon className={`w-4 h-4 ${s.color}`} />
+              <span className="text-xs text-muted-foreground">{s.label}</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums">{s.value}</p>
           </div>
         ))}
       </div>
 
+      {(repairs > 0 || due > 0) && (
+        <div className="flex flex-wrap gap-3 mb-6">
+          {repairs > 0 && (
+            <Link
+              href="/flashcards"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-warning bg-warning-bg text-warning text-sm hover:opacity-80 transition-opacity"
+            >
+              <Wrench className="w-4 h-4" />
+              <span className="font-medium tabular-nums">{repairs}</span> items in repair
+            </Link>
+          )}
+          {due > 0 && (
+            <Link
+              href="/flashcards"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card text-foreground text-sm hover:border-primary/40 transition-colors"
+            >
+              <Brain className="w-4 h-4 text-primary" />
+              <span className="font-medium tabular-nums">{due}</span> cards due today
+            </Link>
+          )}
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Today's plan */}
         <div className="lg:col-span-2">
           <div className="bg-card border border-border rounded-xl">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <Clock className="w-4.5 h-4.5 text-primary" />
+                <Clock className="w-4 h-4 text-primary" />
                 <h2 className="font-semibold text-foreground">Tonight&apos;s plan</h2>
               </div>
-              <span className="text-xs text-muted-foreground">90 min total</span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {pointsToday} / {MAX_SESSION_POINTS} pts
+              </span>
             </div>
+
+            <div className="h-1 bg-muted">
+              <div
+                className="h-full bg-amber-400 transition-all"
+                style={{ width: `${Math.min(100, (pointsToday / MAX_SESSION_POINTS) * 100)}%` }}
+              />
+            </div>
+
             <div className="divide-y divide-border">
-              {todayTasks.map((task, i) => (
-                <Link
-                  key={i}
-                  href={task.href}
-                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-muted/50 transition-colors group"
-                >
-                  {task.done ? (
-                    <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-border flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${task.done ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                      {task.task}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground flex-shrink-0">{task.time}</span>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                </Link>
-              ))}
+              {PLAN.map((item) => {
+                const task = tasks.find((t) => t.kind === item.kind && t.completed);
+                const done = doneKinds.has(item.kind);
+                return (
+                  <Link
+                    key={item.kind}
+                    href={item.href}
+                    className="flex items-center gap-3 px-5 py-3.5 hover:bg-muted/50 transition-colors group"
+                  >
+                    {done ? (
+                      <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-border flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${done ? "text-muted-foreground" : "text-foreground"}`}>
+                        {item.label}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{item.detail}</p>
+                    </div>
+                    {done && task?.stars != null ? (
+                      <StarRating stars={task.stars as Stars} size={14} />
+                    ) : (
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{item.time}</span>
+                    )}
+                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Quick actions */}
-        <div>
-          <div className="bg-card border border-border rounded-xl">
-            <div className="px-5 py-4 border-b border-border">
-              <h2 className="font-semibold text-foreground">Quick start</h2>
+        <div className="space-y-4">
+          <div className="bg-card border border-border rounded-xl p-5">
+            <div className="flex items-baseline justify-between mb-1">
+              <h3 className="text-sm font-medium text-foreground">{profile.current_level}</h3>
+              <span className="text-xs text-muted-foreground tabular-nums">{progress}%</span>
             </div>
-            <div className="p-3 space-y-2">
-              {quickActions.map((action) => (
-                <Link
-                  key={action.label}
-                  href={action.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
-                    action.primary
-                      ? "bg-primary text-primary-foreground hover:opacity-90"
-                      : "hover:bg-muted text-foreground"
-                  }`}
-                >
-                  <action.icon className="w-4.5 h-4.5" />
-                  {action.label}
-                  <ArrowRight className="w-4 h-4 ml-auto" />
-                </Link>
-              ))}
+            <p className="text-xs text-muted-foreground mb-3">
+              {LEVEL_LABELS[profile.current_level]}
+            </p>
+            <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              Day {profile.current_day} of {LEVEL_DAYS[profile.current_level]}
+            </p>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h3 className="text-sm font-medium text-foreground mb-3">The whole road</h3>
+            <div className="space-y-2.5">
+              {LEVELS.map((l) => {
+                const reached = LEVELS.indexOf(l) < LEVELS.indexOf(profile.current_level);
+                const current = l === profile.current_level;
+                const pct = reached ? 100 : current ? progress : 0;
+                return (
+                  <div key={l}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span
+                        className={
+                          current
+                            ? "font-medium text-primary"
+                            : reached
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                        }
+                      >
+                        {l}
+                      </span>
+                      <span className="text-muted-foreground tabular-nums">{pct}%</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          reached ? "bg-success" : "bg-primary"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Level progress */}
-          <div className="bg-card border border-border rounded-xl p-5 mt-4">
-            <h3 className="text-sm font-medium text-foreground mb-3">Level progress</h3>
-            <div className="space-y-3">
-              {[
-                { level: "A1", progress: 5, color: "bg-blue-500" },
-                { level: "A2", progress: 0, color: "bg-emerald-500" },
-                { level: "B1", progress: 0, color: "bg-amber-500" },
-                { level: "B2", progress: 0, color: "bg-purple-500" },
-              ].map((l) => (
-                <div key={l.level}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-medium text-foreground">{l.level}</span>
-                    <span className="text-muted-foreground">{l.progress}%</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${l.color} transition-all`}
-                      style={{ width: `${l.progress}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h3 className="text-sm font-medium text-foreground mb-3">Lifetime</h3>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Three-star tasks</dt>
+                <dd className="text-foreground tabular-nums">{profile.three_star_count}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Sessions finished</dt>
+                <dd className="text-foreground tabular-nums">{profile.sessions_completed}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Longest streak</dt>
+                <dd className="text-foreground tabular-nums">{profile.longest_streak}</dd>
+              </div>
+            </dl>
           </div>
         </div>
       </div>

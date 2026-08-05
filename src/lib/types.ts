@@ -1,58 +1,131 @@
-export type Level = "A1" | "A2" | "B1" | "B2";
+export type Level = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+export const LEVELS: Level[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+export type TaskKind =
+  | "repair"
+  | "vocabulary"
+  | "lesson"
+  | "production"
+  | "speaking"
+  | "closeout";
+
+export type WordKind =
+  | "noun"
+  | "verb"
+  | "adjective"
+  | "adverb"
+  | "preposition"
+  | "conjunction"
+  | "pronoun"
+  | "number"
+  | "phrase";
+
+export type Stars = 0 | 1 | 2 | 3;
 
 export type Profile = {
   id: string;
   full_name: string | null;
   current_level: Level;
-  daily_goal_minutes: number;
+  current_day: number;
+  session_hour: number;
+  total_points: number;
+  three_star_count: number;
   streak_count: number;
-  last_active_date: string | null;
-  total_xp: number;
+  longest_streak: number;
+  last_session_date: string | null;
   words_learned: number;
-  lessons_completed: number;
+  sessions_completed: number;
   created_at: string;
   updated_at: string;
 };
 
-export type VocabularyWord = {
+export type MasterWord = {
   id: string;
-  user_id: string;
-  german_word: string;
-  english_word: string;
-  example_sentence: string | null;
-  example_translation: string | null;
-  word_type: "noun" | "verb" | "adjective" | "adverb" | "preposition" | "conjunction" | "phrase" | "other" | null;
-  gender: "der" | "die" | "das" | null;
-  plural_form: string | null;
   level: Level;
-  created_at: string;
+  day_number: number;
+  german: string;
+  english: string;
+  article: "der" | "die" | "das" | null;
+  plural: string | null;
+  word_type: WordKind;
+  example_de: string;
+  example_en: string;
 };
 
-export type Flashcard = {
+export type UserVocabulary = {
   id: string;
   user_id: string;
-  vocabulary_id: string;
+  word_id: string;
   ease_factor: number;
   interval_days: number;
   repetitions: number;
-  next_review_date: string;
-  last_review_date: string | null;
+  next_review: string;
+  last_review: string | null;
+  best_stars: number;
+  times_correct: number;
+  times_wrong: number;
   created_at: string;
-  vocabulary?: VocabularyWord;
+  vocabulary_master?: MasterWord;
 };
 
-export type Lesson = {
+export type DailySession = {
   id: string;
   user_id: string;
-  lesson_date: string;
-  lesson_type: "grammar" | "speaking" | "listening" | "reading" | "writing" | "mixed";
-  title: string;
-  content: Record<string, unknown>;
+  session_date: string;
   level: Level;
-  duration_minutes: number;
+  day_number: number;
+  points_earned: number;
+  stars_earned: number;
+  tasks_total: number;
+  tasks_done: number;
   completed: boolean;
-  score: number | null;
   created_at: string;
 };
 
-export type LessonType = Lesson["lesson_type"];
+export type SessionTask = {
+  id: string;
+  session_id: string;
+  user_id: string;
+  kind: TaskKind;
+  position: number;
+  title: string;
+  score: number | null;
+  stars: Stars | null;
+  points: number;
+  completed: boolean;
+  payload: Record<string, unknown>;
+  completed_at: string | null;
+  created_at: string;
+};
+
+export type RepairItem = {
+  id: string;
+  user_id: string;
+  source_kind: TaskKind;
+  word_id: string | null;
+  grammar_slug: string | null;
+  description: string;
+  stars_when_queued: number;
+  attempts: number;
+  cleared: boolean;
+  cleared_at: string | null;
+  created_at: string;
+};
+
+export type CurriculumDay = {
+  id: string;
+  level: Level;
+  day_number: number;
+  title: string;
+  grammar_focus: string | null;
+  vocab_topic: string;
+  speaking_prompt: string | null;
+  production_prompt: string | null;
+};
+
+export type CertificateTier =
+  | "Bestanden"
+  | "Gut"
+  | "Sehr gut"
+  | "Ausgezeichnet";

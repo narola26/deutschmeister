@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
-  BookOpen,
   Brain,
-  MessageCircle,
-  BarChart3,
+  Star,
+  Wrench,
+  Mic,
+  Award,
   Zap,
-  Globe,
   ArrowRight,
   GraduationCap,
   Clock,
@@ -14,42 +14,44 @@ import {
 
 const features = [
   {
-    icon: BookOpen,
-    title: "Daily lessons",
-    description: "30-minute structured lessons mixing grammar, vocabulary, and practice tailored to your level.",
+    icon: Star,
+    title: "Stars, not streaks",
+    description: "Every task scores nought to three stars. You always move forward, but the star count tells you the truth about what you can actually do.",
+  },
+  {
+    icon: Wrench,
+    title: "Nothing gets skipped",
+    description: "Anything you scored badly comes back tomorrow, and keeps coming back until it sticks. No gaps compounding quietly into a fake B2.",
+  },
+  {
+    icon: Mic,
+    title: "You speak from day one",
+    description: "Record yourself every night. The AI transcribes it, examines the grammar, and scores what you actually said — not what you meant.",
   },
   {
     icon: Brain,
-    title: "Smart flashcards",
-    description: "Spaced repetition algorithm ensures you remember every word. 30 new words daily.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Real conversations",
-    description: "Practice speaking German with AI in real scenarios — job interviews, shopping, doctor visits.",
-  },
-  {
-    icon: BarChart3,
-    title: "Progress tracking",
-    description: "Weekly quizzes measure your skills. AI identifies weak areas and adjusts your plan.",
+    title: "Spaced repetition",
+    description: "Every word you learn becomes a flashcard on the SM-2 schedule. Hard words return often, mastered words retire.",
   },
   {
     icon: Zap,
-    title: "Grammar decoder",
-    description: "German grammar explained simply. Common mistakes highlighted. Interactive exercises.",
+    title: "Grammar when it breaks",
+    description: "Input first, rule second — the explanation arrives at the moment you make the mistake, which is the only moment it sticks.",
   },
   {
-    icon: Globe,
-    title: "Immersion engine",
-    description: "Translate real texts, read German documents, and practice with authentic materials.",
+    icon: Award,
+    title: "A certificate that counts",
+    description: "Level tests in the exact Goethe and telc format, so when you sit the real exam there are no surprises left.",
   },
 ];
 
 const levels = [
-  { level: "A1", label: "Beginner", weeks: "1-4", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
-  { level: "A2", label: "Elementary", weeks: "5-9", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" },
-  { level: "B1", label: "Intermediate", weeks: "10-17", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
-  { level: "B2", label: "Upper-intermediate", weeks: "18-26", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
+  { level: "A1", label: "Beginner", weeks: "1-10", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+  { level: "A2", label: "Elementary", weeks: "11-20", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200" },
+  { level: "B1", label: "Independent", weeks: "21-37", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" },
+  { level: "B2", label: "Work-ready", weeks: "38-61", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
+  { level: "C1", label: "Fluent", weeks: "62-85", color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+  { level: "C2", label: "Effortless", weeks: "86-113", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
 ];
 
 export default function LandingPage() {
@@ -87,15 +89,15 @@ export default function LandingPage() {
             AI-powered German tutor
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
-            Master German from{" "}
-            <span className="text-primary">zero to B2</span>
+            German from{" "}
+            <span className="text-primary">zero to C2</span>
             <br />
-            in 6 months
+            the whole road
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Your AI tutor creates personalized daily lessons, tracks your progress,
-            and adapts to your learning speed. Built for people living in Germany
-            who need the language for work and life.
+            Every other app is built for beginners and abandoned after B1. This one
+            goes all the way — six levels, ninety minutes a night, and a star on every
+            task that tells you the truth about what you can actually do.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
@@ -112,7 +114,7 @@ export default function LandingPage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <Target className="w-4 h-4" />
-                Job-ready German
+                Goethe exam ready
               </span>
             </div>
           </div>
@@ -123,8 +125,15 @@ export default function LandingPage() {
       <section className="pb-16 px-6">
         <div className="max-w-3xl mx-auto">
           <div className="bg-card border border-border rounded-2xl p-6 sm:p-8">
-            <h3 className="text-sm font-medium text-muted-foreground mb-4">Your 26-week journey</h3>
-            <div className="flex gap-2 mb-4">
+            <div className="flex items-baseline justify-between mb-4 gap-4">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Six levels, roughly 26 months
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                honest numbers, not marketing
+              </span>
+            </div>
+            <div className="flex gap-1.5 mb-4">
               {levels.map((l) => (
                 <div key={l.level} className="flex-1">
                   <div className="h-3 rounded-full bg-muted overflow-hidden">
@@ -133,13 +142,14 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {levels.map((l) => (
                 <div key={l.level} className="flex-1 text-center">
-                  <span className={`inline-block text-xs font-medium px-2.5 py-1 rounded-full ${l.color}`}>
+                  <span className={`inline-block text-xs font-medium px-2 py-1 rounded-full ${l.color}`}>
                     {l.level}
                   </span>
-                  <p className="text-xs text-muted-foreground mt-1">Weeks {l.weeks}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 hidden sm:block">{l.label}</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">Wk {l.weeks}</p>
                 </div>
               ))}
             </div>
@@ -152,10 +162,11 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
-              Everything you need to learn German
+              Built around why people fail
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              12 integrated modules that work together to build your skills every day.
+              Learners understand at B1 and write at A2, because tapping the right box is
+              recognition, not production. Every module here exists to fix that.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   GraduationCap,
   LayoutDashboard,
@@ -40,7 +41,14 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  async function logout() {
+    await createClient().auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -98,7 +106,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Logout */}
         <div className="p-3 border-t border-border">
-          <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors">
+          <button
+            onClick={logout}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted w-full transition-colors"
+          >
             <LogOut className="w-4.5 h-4.5" />
             Log out
           </button>
