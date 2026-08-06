@@ -154,14 +154,28 @@ export default function VocabularyPage() {
   if (phase === "empty") {
     return (
       <div className="max-w-md mx-auto text-center py-24">
-        <h1 className="text-xl font-bold text-foreground mb-2">No words for today yet</h1>
+        <h1 className="text-xl font-bold text-foreground mb-2">
+          Day {profile?.current_day} is still being written
+        </h1>
         <p className="text-sm text-muted-foreground mb-6">
-          Run <code className="text-xs bg-muted px-1.5 py-0.5 rounded">supabase-seed-a1.sql</code> in
-          your Supabase SQL editor to load the A1 vocabulary, then reload this page.
+          A1 runs to 30 days and the vocabulary is being written day by day, checked
+          word for word. Everything up to day 12 is ready — review what you have while
+          the rest is finished.
         </p>
-        <Link href="/dashboard" className="text-sm text-primary hover:underline">
-          Back to dashboard
-        </Link>
+        <div className="flex gap-3 justify-center">
+          <Link
+            href="/flashcards"
+            className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Review flashcards
+          </Link>
+          <Link
+            href="/dashboard"
+            className="px-5 py-2.5 rounded-lg border border-border text-sm text-foreground hover:bg-muted transition-colors"
+          >
+            Dashboard
+          </Link>
+        </div>
       </div>
     );
   }

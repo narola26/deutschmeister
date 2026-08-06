@@ -83,13 +83,22 @@ export function examReadiness(averageStars: number): {
 // Level structure — days per level at 90 min/night
 // ------------------------------------------------------------
 
+/**
+ * Nights per level at 90 minutes a night.
+ *
+ * These are deliberately shorter than the ~160 guided hours the exam
+ * boards budget. The syllabus is fully covered in this time; the
+ * repetition that turns coverage into mastery comes from the spaced
+ * repetition and repair queue, which keep drilling each level
+ * underneath the next one.
+ */
 export const LEVEL_DAYS: Record<Level, number> = {
-  A1: 70,
-  A2: 70,
-  B1: 119,
-  B2: 168,
-  C1: 168,
-  C2: 196,
+  A1: 30,
+  A2: 55,
+  B1: 90,
+  B2: 120,
+  C1: 140,
+  C2: 160,
 };
 
 export const LEVEL_LABELS: Record<Level, string> = {
@@ -99,6 +108,16 @@ export const LEVEL_LABELS: Record<Level, string> = {
   B2: "Work in German",
   C1: "Say what you actually mean",
   C2: "Effortless",
+};
+
+/** Roughly what each level is worth on paper. */
+export const LEVEL_EXAMS: Record<Level, string> = {
+  A1: "Goethe A1 · telc A1 · ÖSD A1",
+  A2: "Goethe A2 · telc A2 · ÖSD A2",
+  B1: "Goethe B1 · telc B1 · DTZ",
+  B2: "Goethe B2 · telc B2",
+  C1: "Goethe C1 · TestDaF · DSH",
+  C2: "Goethe C2 · GDS",
 };
 
 export function levelProgress(level: Level, day: number): number {

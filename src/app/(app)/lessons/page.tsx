@@ -168,9 +168,10 @@ export default function LessonsPage() {
   if (phase === "empty") {
     return (
       <div className="max-w-md mx-auto text-center py-24">
-        <h1 className="text-xl font-bold text-foreground mb-2">No lesson for today yet</h1>
+        <h1 className="text-xl font-bold text-foreground mb-2">No grammar lesson today</h1>
         <p className="text-sm text-muted-foreground mb-6">
-          The curriculum currently covers A1 days 1 to 7. More is being written.
+          Days 28 to 30 are exam training rather than new grammar. Those modules are
+          being built next.
         </p>
         <Link href="/dashboard" className="text-sm text-primary hover:underline">
           Back to dashboard
