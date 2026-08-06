@@ -119,9 +119,26 @@ export type CurriculumDay = {
   day_number: number;
   title: string;
   grammar_focus: string | null;
+  grammar_slug: string | null;
   vocab_topic: string;
   speaking_prompt: string | null;
   production_prompt: string | null;
+};
+
+export type GrammarExample = { de: string; en: string };
+
+export type GrammarMistake = { wrong: string; right: string; why: string };
+
+export type GrammarTopic = {
+  id: string;
+  level: Level;
+  slug: string;
+  title: string;
+  summary: string;
+  explanation: string;
+  examples: GrammarExample[];
+  common_mistakes: GrammarMistake[];
+  sort_order: number;
 };
 
 export type CertificateTier =

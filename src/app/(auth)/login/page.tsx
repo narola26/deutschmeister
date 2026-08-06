@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { migrateGuestToAccount } from "@/lib/migrate";
 import { LogIn, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
@@ -20,15 +21,22 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        setError(error.message);
+        setError(
+          /email not confirmed/i.test(error.message)
+            ? "Check your inbox and click the confirmation link first, then log in."
+            : error.message
+        );
         return;
       }
+
+      // Anything learned as a guest moves across now.
+      if (data.user) await migrateGuestToAccount(data.user.id);
 
       router.push("/dashboard");
     } catch {

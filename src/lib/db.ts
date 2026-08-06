@@ -24,6 +24,7 @@ import type {
   TaskKind,
   Stars,
   CurriculumDay,
+  GrammarTopic,
 } from "./types";
 
 /** null means nobody is signed in — guest mode. */
@@ -84,6 +85,28 @@ export async function getWordsForDay(
     .order("german");
 
   return (data ?? []) as MasterWord[];
+}
+
+export async function getGrammarTopic(
+  slug: string
+): Promise<GrammarTopic | null> {
+  const { data } = await createClient()
+    .from("grammar_topics")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  return data as GrammarTopic | null;
+}
+
+export async function getGrammarTopics(level: string): Promise<GrammarTopic[]> {
+  const { data } = await createClient()
+    .from("grammar_topics")
+    .select("*")
+    .eq("level", level)
+    .order("sort_order");
+
+  return (data ?? []) as GrammarTopic[];
 }
 
 async function getWordsByIds(ids: string[]): Promise<MasterWord[]> {

@@ -1,11 +1,18 @@
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-type Message = {
+/** Verified live on the Groq free tier. */
+export const MODEL = "llama-3.3-70b-versatile";
+export const FAST_MODEL = "llama-3.1-8b-instant";
+
+export type Message = {
   role: "system" | "user" | "assistant";
   content: string;
 };
 
-export async function chatWithGroq(messages: Message[], temperature = 0.7) {
+export async function chatWithGroq(
+  messages: Message[],
+  opts: { temperature?: number; json?: boolean; model?: string } = {}
+): Promise<string> {
   const res = await fetch(GROQ_API_URL, {
     method: "POST",
     headers: {
@@ -13,30 +20,32 @@ export async function chatWithGroq(messages: Message[], temperature = 0.7) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama-3.1-70b-versatile",
+      model: opts.model ?? MODEL,
       messages,
-      temperature,
+      temperature: opts.temperature ?? 0.7,
       max_tokens: 2048,
+      ...(opts.json ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 
   if (!res.ok) {
-    const error = await res.text();
-    throw new Error(`Groq API error: ${res.status} ${error}`);
+    throw new Error(`Groq ${res.status}: ${await res.text()}`);
   }
 
   const data = await res.json();
   return data.choices[0].message.content as string;
 }
 
-export const SYSTEM_PROMPT = `You are DeutschMeister, an expert German language tutor. You help students learn German from absolute beginner (A1) to professional fluency (B2).
+/**
+ * The AI is a marker and a coach, never an author of the syllabus.
+ * It corrects what the learner produced against rules that live in
+ * the fixed content — it does not invent grammar or vocabulary.
+ */
+export const SYSTEM_PROMPT = `You are DeutschMeister, an exacting but encouraging German tutor.
 
-Your teaching style:
-- Always provide the German word/phrase, its English translation, and an example sentence
-- Explain grammar rules clearly with simple examples
-- Correct mistakes gently and explain why something is wrong
-- Use the student's current level to adjust difficulty
-- Focus on practical, everyday German and professional/workplace vocabulary
-- When speaking German, also provide the English translation in parentheses
-
-You are patient, encouraging, and systematic. You celebrate progress and make learning fun.`;
+Rules you never break:
+- Correct German only. If you are unsure of a gender, plural or form, say so rather than guessing.
+- Explain every correction in plain English so the learner understands the rule, not just the fix.
+- Judge work against the learner's stated CEFR level. Do not penalise a beginner for missing advanced structures.
+- Be specific. "Word order is wrong" is useless; "the verb must be second — Heute ich gehe should be Heute gehe ich" is useful.
+- Never invent vocabulary the learner has not been taught when a simpler word exists.`;

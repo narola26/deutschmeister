@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { UserPlus, Loader2 } from "lucide-react";
+import { migrateGuestToAccount } from "@/lib/migrate";
+import { loadGuest, hasGuestProgress } from "@/lib/guest";
+import { UserPlus, Loader2, MailCheck, Star } from "lucide-react";
 
 export default function SignupPage() {
   const [fullName, setFullName] = useState("");
@@ -12,35 +14,57 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [carryOver, setCarryOver] = useState<{ words: number; points: number } | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!hasGuestProgress()) return;
+    const g = loadGuest();
+    const words = Object.keys(g.vocab).length;
+    if (words > 0 || g.total_points > 0) {
+      setCarryOver({ words, points: g.total_points });
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
-      setLoading(false);
       return;
     }
 
+    setLoading(true);
+
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { full_name: fullName },
-        },
+        options: { data: { full_name: fullName } },
       });
 
       if (error) {
-        setError(error.message);
+        setError(
+          /invalid/i.test(error.message)
+            ? "That email address was rejected. Try a different one — some domains are blocked."
+            : error.message
+        );
         return;
       }
 
+      // No session means the project requires email confirmation.
+      // Say so plainly rather than dropping them on a logged-out dashboard.
+      if (!data.session) {
+        setNeedsConfirm(true);
+        return;
+      }
+
+      if (data.user) await migrateGuestToAccount(data.user.id);
       router.push("/dashboard");
+      router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -48,12 +72,54 @@ export default function SignupPage() {
     }
   }
 
+  if (needsConfirm) {
+    return (
+      <div className="w-full max-w-sm">
+        <div className="bg-card border border-border rounded-2xl p-8 text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-light mb-5">
+            <MailCheck className="w-7 h-7 text-primary" />
+          </div>
+          <h1 className="text-xl font-bold text-foreground mb-2">Confirm your email</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            We sent a link to <span className="text-foreground">{email}</span>. Click it,
+            then come back and log in.
+          </p>
+          <p className="text-xs text-muted-foreground mb-6">
+            Your progress is safe in this browser and will move across once you log in.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center w-full bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Go to log in
+          </Link>
+        </div>
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          <Link href="/dashboard" className="text-primary hover:underline">
+            Keep learning as a guest
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-sm">
+      {carryOver && (
+        <div className="mb-4 px-4 py-3 rounded-xl border border-border bg-card flex items-start gap-2.5">
+          <Star className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            Your <span className="text-foreground">{carryOver.words} words</span> and{" "}
+            <span className="text-foreground">{carryOver.points} points</span> will move
+            into this account.
+          </p>
+        </div>
+      )}
+
       <div className="bg-card border border-border rounded-2xl p-8">
         <h1 className="text-2xl font-bold text-foreground mb-1">Create your account</h1>
         <p className="text-sm text-muted-foreground mb-6">
-          Start your journey to German fluency
+          Keep your progress safe and join the leaderboard
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -111,11 +177,7 @@ export default function SignupPage() {
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <UserPlus className="w-4 h-4" />
-            )}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
             {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
@@ -125,6 +187,11 @@ export default function SignupPage() {
         Already have an account?{" "}
         <Link href="/login" className="text-primary hover:underline font-medium">
           Log in
+        </Link>
+      </p>
+      <p className="text-center text-sm text-muted-foreground mt-2">
+        <Link href="/dashboard" className="hover:underline">
+          Or keep learning without an account
         </Link>
       </p>
     </div>
