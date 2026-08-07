@@ -5,18 +5,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { migrateGuestToAccount } from "@/lib/migrate";
-import { LogIn, Loader2 } from "lucide-react";
+import { LogIn, Loader2, MailCheck } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Shown only when the account exists but the email was never confirmed.
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setNeedsConfirm(false);
+    setResendState("idle");
     setLoading(true);
 
     try {
@@ -27,11 +32,13 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setError(
-          /email not confirmed/i.test(error.message)
-            ? "Check your inbox and click the confirmation link first, then log in."
-            : error.message
-        );
+        if (/email not confirmed/i.test(error.message)) {
+          setNeedsConfirm(true);
+        } else if (/invalid login credentials/i.test(error.message)) {
+          setError("That email and password don't match. Check them and try again.");
+        } else {
+          setError(error.message);
+        }
         return;
       }
 
@@ -43,6 +50,22 @@ export default function LoginPage() {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!email) return;
+    setResendState("sending");
+    try {
+      await createClient().auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      });
+      setResendState("sent");
+    } catch {
+      setResendState("idle");
+      setError("Could not resend the email. Please try again in a minute.");
     }
   }
 
@@ -87,6 +110,34 @@ export default function LoginPage() {
 
           {error && (
             <p className="text-sm text-danger bg-danger-bg px-3 py-2 rounded-lg">{error}</p>
+          )}
+
+          {needsConfirm && (
+            <div className="text-sm bg-warning-bg border border-warning/30 rounded-lg px-3.5 py-3">
+              <p className="text-warning font-medium mb-1 flex items-center gap-1.5">
+                <MailCheck className="w-4 h-4" aria-hidden="true" />
+                Confirm your email first
+              </p>
+              <p className="text-warning/90 mb-2.5 text-xs leading-relaxed">
+                This account exists, but the email hasn&apos;t been confirmed yet. Click the
+                link we emailed you, then log in. Can&apos;t find it? Check spam, or resend it.
+              </p>
+              {resendState === "sent" ? (
+                <p className="text-xs text-success flex items-center gap-1.5">
+                  <MailCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                  Sent. Check your inbox and spam folder.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={resendConfirmation}
+                  disabled={resendState === "sending"}
+                  className="text-xs font-medium text-warning underline disabled:opacity-50"
+                >
+                  {resendState === "sending" ? "Sending…" : "Resend confirmation email"}
+                </button>
+              )}
+            </div>
           )}
 
           <button
