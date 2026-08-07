@@ -24,6 +24,9 @@ import type { MasterWord, Profile, DailySession, Stars } from "@/lib/types";
 
 type Phase = "loading" | "study" | "quiz" | "done" | "empty";
 
+/** Below this, a day is treated as still being written rather than a session. */
+const MIN_WORDS_PER_DAY = 10;
+
 type Question = {
   word: MasterWord;
   options: string[];
@@ -83,8 +86,11 @@ export default function VocabularyPage() {
       const p = await getProfile();
       setProfile(p);
 
+      // A day that is only partially written is not a session. Some days
+      // hold a handful of words that were moved there to sit with their
+      // grammar; treat those as unwritten until the day is finished.
       const w = await getWordsForDay(p.current_level, p.current_day);
-      if (w.length === 0) return setPhase("empty");
+      if (w.length < MIN_WORDS_PER_DAY) return setPhase("empty");
       setWords(w);
 
       const s = await getOrCreateSession(p);
@@ -158,9 +164,9 @@ export default function VocabularyPage() {
           Day {profile?.current_day} is still being written
         </h1>
         <p className="text-sm text-muted-foreground mb-6">
-          A1 runs to 30 days and the vocabulary is being written day by day, checked
-          word for word. Everything up to day 12 is ready — review what you have while
-          the rest is finished.
+          A1 runs to 30 days, and the vocabulary is written one checked word at a time
+          rather than generated. This day is not finished yet — review what you already
+          have while the rest is written.
         </p>
         <div className="flex gap-3 justify-center">
           <Link
