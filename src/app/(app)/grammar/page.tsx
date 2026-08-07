@@ -11,15 +11,9 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { getProfile, getGrammarTopics } from "@/lib/db";
+import { speak } from "@/lib/speech";
+import VoiceNotice from "@/components/voice-notice";
 import type { GrammarTopic, Level } from "@/lib/types";
-
-function speak(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "de-DE";
-  u.rate = 0.85;
-  window.speechSynthesis.speak(u);
-}
 
 export default function GrammarPage() {
   const [loading, setLoading] = useState(true);
@@ -65,6 +59,8 @@ export default function GrammarPage() {
           up without waiting for the day it is taught.
         </p>
       </div>
+
+      <VoiceNotice />
 
       <div className="relative mb-6">
         <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />

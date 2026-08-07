@@ -22,6 +22,8 @@ import {
 } from "@/lib/db";
 import { MAX_TASK_POINTS, STAR_BANDS } from "@/lib/stars";
 import StarRating from "@/components/star-rating";
+import VoiceNotice from "@/components/voice-notice";
+import { speak } from "@/lib/speech";
 import type {
   Profile,
   DailySession,
@@ -39,14 +41,6 @@ type Drill = {
   answer: string;
   why: string;
 };
-
-function speak(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "de-DE";
-  u.rate = 0.85;
-  window.speechSynthesis.speak(u);
-}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -190,6 +184,8 @@ export default function LessonsPage() {
           </p>
           <h1 className="text-2xl font-bold text-foreground">{topic.title}</h1>
         </div>
+
+        <VoiceNotice />
 
         <div className="bg-primary-light border border-border rounded-xl p-5 mb-6">
           <p className="text-sm text-foreground leading-relaxed">{topic.summary}</p>

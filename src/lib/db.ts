@@ -15,6 +15,7 @@ import {
   type GuestState,
 } from "./guest";
 import { todayLocal as today, addDays } from "./dates";
+import { LEVEL_DAYS } from "./stars";
 import type {
   Profile,
   MasterWord,
@@ -501,6 +502,47 @@ export async function saveFlashcardReview(
       .eq("word_id", card.word_id)
       .eq("cleared", false);
   }
+}
+
+/**
+ * Move the learner on to the next day.
+ *
+ * Nothing did this before, so every learner was stuck repeating day one
+ * forever. Advancing is explicit rather than automatic: the learner
+ * decides they are done, which also means a missed evening does not
+ * silently burn a day of curriculum.
+ */
+export async function advanceDay(
+  profile: Profile
+): Promise<{ day: number; levelComplete: boolean }> {
+  const last = LEVEL_DAYS[profile.current_level];
+  const next = Math.min(last + 1, profile.current_day + 1);
+  const levelComplete = next > last;
+  const uid = await currentUserId();
+
+  if (!uid) {
+    const g = loadGuest();
+    saveGuest({ ...g, current_day: next });
+    return { day: next, levelComplete };
+  }
+
+  await createClient()
+    .from("profiles")
+    .update({ current_day: next, updated_at: new Date().toISOString() })
+    .eq("id", uid);
+
+  return { day: next, levelComplete };
+}
+
+/** Which of the day's blocks the learner has finished. */
+export async function getDayCompletion(
+  session: DailySession
+): Promise<{ vocabulary: boolean; lesson: boolean; canAdvance: boolean }> {
+  const tasks = await getSessionTasks(session.id);
+  const done = new Set(tasks.filter((t) => t.completed).map((t) => t.kind));
+  const vocabulary = done.has("vocabulary");
+  const lesson = done.has("lesson");
+  return { vocabulary, lesson, canAdvance: vocabulary && lesson };
 }
 
 export async function getOpenRepairCount(): Promise<number> {

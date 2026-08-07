@@ -17,6 +17,7 @@ import {
   BarChart3,
   ClipboardCheck,
   Zap,
+  Volume2,
   LogOut,
   UserPlus,
   Menu,
@@ -26,6 +27,7 @@ import { useState, useEffect } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/pronunciation", label: "How German sounds", icon: Volume2 },
   { href: "/lessons", label: "Daily lesson", icon: BookOpen },
   { href: "/vocabulary", label: "Vocabulary", icon: Zap },
   { href: "/flashcards", label: "Flashcards", icon: Brain },

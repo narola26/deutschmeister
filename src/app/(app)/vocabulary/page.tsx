@@ -10,6 +10,8 @@ import {
   Loader2,
   Volume2,
   Trophy,
+  Rabbit,
+  Info,
 } from "lucide-react";
 import {
   getProfile,
@@ -19,13 +21,26 @@ import {
   saveVocabularyResults,
 } from "@/lib/db";
 import { MAX_TASK_POINTS, STAR_BANDS } from "@/lib/stars";
+import { speak } from "@/lib/speech";
 import StarRating from "@/components/star-rating";
+import VoiceNotice from "@/components/voice-notice";
+import { GENDER_CLASS } from "@/components/gender-word";
 import type { MasterWord, Profile, DailySession, Stars } from "@/lib/types";
 
-type Phase = "loading" | "study" | "quiz" | "done" | "empty";
+type Phase = "loading" | "study" | "batch-check" | "quiz" | "done" | "empty";
 
 /** Below this, a day is treated as still being written rather than a session. */
 const MIN_WORDS_PER_DAY = 10;
+
+/**
+ * Words are taught in small batches with a check after each one.
+ *
+ * The previous version showed all thirty words once and then tested
+ * them, which nobody can pass — a beginner scored the same as random
+ * guessing and was told they had failed. Six at a time, each one seen
+ * again immediately, is how the words actually stick.
+ */
+const BATCH_SIZE = 6;
 
 type Question = {
   word: MasterWord;
@@ -43,27 +58,22 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function buildQuiz(words: MasterWord[], count = 12): Question[] {
-  return shuffle(words)
+function buildQuestions(
+  pool: MasterWord[],
+  from: MasterWord[],
+  count: number
+): Question[] {
+  return shuffle(from)
     .slice(0, count)
     .map((word) => {
-      const direction: "de-en" | "en-de" =
-        Math.random() > 0.5 ? "de-en" : "en-de";
+      const direction: "de-en" | "en-de" = Math.random() > 0.5 ? "de-en" : "en-de";
       const answer = direction === "de-en" ? word.english : word.german;
-      const pool = words
+      const others = pool
         .filter((w) => w.id !== word.id)
         .map((w) => (direction === "de-en" ? w.english : w.german));
-      const options = shuffle([...shuffle(pool).slice(0, 3), answer]);
-      return { word, options, answer, direction };
+      const distractors = shuffle(others).slice(0, Math.min(3, others.length));
+      return { word, options: shuffle([...distractors, answer]), answer, direction };
     });
-}
-
-function speak(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "de-DE";
-  utter.rate = 0.85;
-  window.speechSynthesis.speak(utter);
 }
 
 export default function VocabularyPage() {
@@ -71,9 +81,11 @@ export default function VocabularyPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<DailySession | null>(null);
   const [words, setWords] = useState<MasterWord[]>([]);
+
+  const [batch, setBatch] = useState(0);
   const [index, setIndex] = useState(0);
 
-  const [quiz, setQuiz] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [qIndex, setQIndex] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [results, setResults] = useState<{ word: MasterWord; correct: boolean }[]>([]);
@@ -85,29 +97,25 @@ export default function VocabularyPage() {
     (async () => {
       const p = await getProfile();
       setProfile(p);
-
-      // A day that is only partially written is not a session. Some days
-      // hold a handful of words that were moved there to sit with their
-      // grammar; treat those as unwritten until the day is finished.
       const w = await getWordsForDay(p.current_level, p.current_day);
       if (w.length < MIN_WORDS_PER_DAY) return setPhase("empty");
       setWords(w);
-
-      const s = await getOrCreateSession(p);
-      setSession(s);
+      setSession(await getOrCreateSession(p));
       setPhase("study");
     })();
   }, []);
+
+  const batches = Math.ceil(words.length / BATCH_SIZE);
+  const batchWords = words.slice(batch * BATCH_SIZE, (batch + 1) * BATCH_SIZE);
+  const isLastBatch = batch >= batches - 1;
 
   const finish = useCallback(
     async (finalResults: { word: MasterWord; correct: boolean }[]) => {
       if (!profile || !session) return;
       setSaving(true);
 
-      // The quiz samples 12 of the 30, but all 30 were studied — every one
-      // of them enters spaced repetition. Untested words start on the normal
-      // one-day interval; tested ones carry their real result.
-      const score = finalResults.filter((r) => r.correct).length / finalResults.length;
+      const score =
+        finalResults.filter((r) => r.correct).length / finalResults.length;
       const tested = new Set(finalResults.map((r) => r.word.id));
       const untested = words
         .filter((w) => !tested.has(w.id))
@@ -121,28 +129,46 @@ export default function VocabularyPage() {
         position: 2,
         title: `${words.length} new words — day ${profile.current_day}`,
         score,
-        payload: { correct: finalResults.filter((r) => r.correct).length, total: finalResults.length },
+        payload: {
+          correct: finalResults.filter((r) => r.correct).length,
+          total: finalResults.length,
+        },
       });
 
       setEarned({ stars: res.stars, points: res.points });
       setSaving(false);
       setPhase("done");
     },
-    [profile, session, words.length]
+    [profile, session, words]
   );
 
   function answer(option: string) {
     if (picked) return;
     setPicked(option);
-    const q = quiz[qIndex];
+    const q = questions[qIndex];
     const correct = option === q.answer;
     const next = [...results, { word: q.word, correct }];
     setResults(next);
 
     setTimeout(() => {
-      if (qIndex + 1 < quiz.length) {
+      if (qIndex + 1 < questions.length) {
         setQIndex(qIndex + 1);
         setPicked(null);
+        return;
+      }
+      if (phase === "batch-check") {
+        if (isLastBatch) {
+          setQuestions(buildQuestions(words, words, 12));
+          setQIndex(0);
+          setPicked(null);
+          setResults([]);
+          setPhase("quiz");
+        } else {
+          setBatch(batch + 1);
+          setIndex(0);
+          setPicked(null);
+          setPhase("study");
+        }
       } else {
         finish(next);
       }
@@ -188,45 +214,59 @@ export default function VocabularyPage() {
 
   // ---------- STUDY ----------
   if (phase === "study") {
-    const w = words[index];
-    const isLast = index === words.length - 1;
+    const w = batchWords[index];
+    const lastInBatch = index === batchWords.length - 1;
+    const seen = batch * BATCH_SIZE + index + 1;
 
     return (
       <div className="max-w-xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-2 gap-4">
           <div>
             <h1 className="text-xl font-bold text-foreground">New vocabulary</h1>
             <p className="text-sm text-muted-foreground">
-              Day {profile?.current_day} &middot; {profile?.current_level}
+              Day {profile?.current_day} &middot; group {batch + 1} of {batches}
             </p>
           </div>
           <span className="text-sm text-muted-foreground tabular-nums">
-            {index + 1} / {words.length}
+            {seen} / {words.length}
           </span>
         </div>
 
-        <div className="h-1.5 bg-muted rounded-full mb-8 overflow-hidden">
+        <div className="h-1.5 bg-muted rounded-full mb-6 overflow-hidden">
           <div
             className="h-full bg-primary rounded-full transition-all"
-            style={{ width: `${((index + 1) / words.length) * 100}%` }}
+            style={{ width: `${(seen / words.length) * 100}%` }}
           />
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-8 mb-6 min-h-[320px] flex flex-col">
+        <VoiceNotice />
+
+        <div className="bg-card border border-border rounded-2xl p-8 mb-6 min-h-[300px] flex flex-col">
           <div className="flex items-start justify-between gap-4 mb-1">
             <div>
               {w.article && (
-                <span className="text-lg text-muted-foreground">{w.article} </span>
+                <span className={`text-lg mr-1 ${GENDER_CLASS[w.article] ?? ""}`}>
+                  {w.article}{" "}
+                </span>
               )}
               <span className="text-3xl font-bold text-foreground">{w.german}</span>
             </div>
-            <button
-              onClick={() => speak(w.article ? `${w.article} ${w.german}` : w.german)}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              aria-label="Listen to pronunciation"
-            >
-              <Volume2 className="w-5 h-5" />
-            </button>
+            <div className="flex gap-1 flex-shrink-0">
+              <button
+                onClick={() => speak(w.article ? `${w.article} ${w.german}` : w.german, { slow: true })}
+                aria-label="Hear it slowly"
+                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Rabbit className="w-5 h-5 rotate-180" aria-hidden="true" />
+              </button>
+              <button
+                onClick={() => speak(w.article ? `${w.article} ${w.german}` : w.german)}
+                aria-label="Hear it"
+                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Volume2 className="w-5 h-5" aria-hidden="true" />
+              </button>
+            </div>
           </div>
 
           {w.plural && (
@@ -239,10 +279,7 @@ export default function VocabularyPage() {
             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
               {w.word_type}
             </p>
-            <button
-              onClick={() => speak(w.example_de)}
-              className="text-left w-full group"
-            >
+            <button onClick={() => speak(w.example_de)} className="text-left w-full group">
               <p className="text-foreground mb-1 group-hover:text-primary transition-colors">
                 {w.example_de}
               </p>
@@ -257,49 +294,72 @@ export default function VocabularyPage() {
             disabled={index === 0}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm text-foreground hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             Back
           </button>
           <button
             onClick={() => {
-              if (isLast) {
-                setQuiz(buildQuiz(words));
-                setPhase("quiz");
+              if (lastInBatch) {
+                setQuestions(buildQuestions(words, batchWords, batchWords.length));
+                setQIndex(0);
+                setPicked(null);
+                setResults([]);
+                setPhase("batch-check");
               } else {
                 setIndex(index + 1);
               }
             }}
             className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
           >
-            {isLast ? "Start the quiz" : "Next word"}
-            <ArrowRight className="w-4 h-4" />
+            {lastInBatch ? `Practise these ${batchWords.length}` : "Next word"}
+            <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
     );
   }
 
-  // ---------- QUIZ ----------
-  if (phase === "quiz") {
-    const q = quiz[qIndex];
+  // ---------- CHECKS ----------
+  if (phase === "batch-check" || phase === "quiz") {
+    const q = questions[qIndex];
     const prompt = q.direction === "de-en" ? q.word.german : q.word.english;
     const promptArticle = q.direction === "de-en" ? q.word.article : null;
+    const isFinal = phase === "quiz";
 
     return (
       <div className="max-w-xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold text-foreground">Quick check</h1>
+        <div className="flex items-center justify-between mb-2 gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">
+              {isFinal ? "Final check" : "Quick practice"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {isFinal
+                ? "All of today's words"
+                : `The ${batchWords.length} you just met`}
+            </p>
+          </div>
           <span className="text-sm text-muted-foreground tabular-nums">
-            {qIndex + 1} / {quiz.length}
+            {qIndex + 1} / {questions.length}
           </span>
         </div>
 
-        <div className="h-1.5 bg-muted rounded-full mb-8 overflow-hidden">
+        <div className="h-1.5 bg-muted rounded-full mb-6 overflow-hidden">
           <div
-            className="h-full bg-amber-400 rounded-full transition-all"
-            style={{ width: `${((qIndex + 1) / quiz.length) * 100}%` }}
+            className={`h-full rounded-full transition-all ${isFinal ? "bg-amber-400" : "bg-primary"}`}
+            style={{ width: `${((qIndex + 1) / questions.length) * 100}%` }}
           />
         </div>
+
+        {!isFinal && (
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-primary-light border border-border mb-5">
+            <Info aria-hidden="true" className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              This practice round is not scored. It is here so the words are already
+              familiar by the time the real check arrives.
+            </p>
+          </div>
+        )}
 
         <div className="bg-card border border-border rounded-2xl p-8 mb-5 text-center">
           <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
@@ -307,7 +367,9 @@ export default function VocabularyPage() {
           </p>
           <p className="text-3xl font-bold text-foreground">
             {promptArticle && (
-              <span className="text-muted-foreground text-xl">{promptArticle} </span>
+              <span className={`text-xl ${GENDER_CLASS[promptArticle] ?? ""}`}>
+                {promptArticle}{" "}
+              </span>
             )}
             {prompt}
           </p>
@@ -331,8 +393,8 @@ export default function VocabularyPage() {
                 className={`flex items-center justify-between gap-3 px-5 py-3.5 rounded-xl border text-left text-sm transition-colors ${style}`}
               >
                 <span>{opt}</span>
-                {picked && isAnswer && <Check className="w-4 h-4 flex-shrink-0" />}
-                {picked && isPicked && !isAnswer && <X className="w-4 h-4 flex-shrink-0" />}
+                {picked && isAnswer && <Check className="w-4 h-4 flex-shrink-0" aria-hidden="true" />}
+                {picked && isPicked && !isAnswer && <X className="w-4 h-4 flex-shrink-0" aria-hidden="true" />}
               </button>
             );
           })}
@@ -349,7 +411,7 @@ export default function VocabularyPage() {
     <div className="max-w-xl mx-auto py-8">
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950 mb-5">
-          <Trophy className="w-8 h-8 text-amber-500" />
+          <Trophy className="w-8 h-8 text-amber-500" aria-hidden="true" />
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">
           {correct} of {results.length} correct
@@ -371,6 +433,12 @@ export default function VocabularyPage() {
                   {" "}of {MAX_TASK_POINTS}
                 </span>
               </p>
+              <Link
+                href="/how-scoring-works"
+                className="text-xs text-muted-foreground hover:text-foreground underline mt-2 inline-block"
+              >
+                What do the stars mean?
+              </Link>
             </>
           )
         )}
@@ -391,7 +459,7 @@ export default function VocabularyPage() {
               <div key={word.id} className="px-5 py-3 flex items-baseline justify-between gap-4">
                 <span className="text-sm text-foreground">
                   {word.article && (
-                    <span className="text-muted-foreground">{word.article} </span>
+                    <span className={GENDER_CLASS[word.article] ?? ""}>{word.article} </span>
                   )}
                   {word.german}
                 </span>
@@ -410,11 +478,11 @@ export default function VocabularyPage() {
           Back to dashboard
         </Link>
         <Link
-          href="/flashcards"
+          href="/lessons"
           className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
         >
-          Review flashcards
-          <ArrowRight className="w-4 h-4" />
+          Today&apos;s lesson
+          <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </Link>
       </div>
     </div>

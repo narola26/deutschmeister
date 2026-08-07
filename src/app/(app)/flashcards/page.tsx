@@ -11,7 +11,10 @@ import {
   saveFlashcardReview,
 } from "@/lib/db";
 import { nextReview, STAR_BANDS, MAX_TASK_POINTS } from "@/lib/stars";
+import { speak } from "@/lib/speech";
 import StarRating from "@/components/star-rating";
+import VoiceNotice from "@/components/voice-notice";
+import { GENDER_CLASS } from "@/components/gender-word";
 import type { UserVocabulary, Profile, DailySession, Stars } from "@/lib/types";
 
 type Phase = "loading" | "review" | "done" | "empty";
@@ -22,14 +25,6 @@ const RATINGS: { stars: Stars; label: string; hint: string; style: string }[] = 
   { stars: 2, label: "Good", hint: "got it", style: "border-primary text-primary hover:bg-primary-light" },
   { stars: 3, label: "Easy", hint: "mastered", style: "border-success text-success hover:bg-success-bg" },
 ];
-
-function speak(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "de-DE";
-  utter.rate = 0.85;
-  window.speechSynthesis.speak(utter);
-}
 
 export default function FlashcardsPage() {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -158,6 +153,8 @@ export default function FlashcardsPage() {
           />
         </div>
 
+        <VoiceNotice />
+
         <button
           onClick={() => !flipped && setFlipped(true)}
           className={`w-full bg-card border border-border rounded-2xl p-8 mb-6 min-h-[300px] flex flex-col items-center justify-center text-center transition-colors ${
@@ -166,7 +163,9 @@ export default function FlashcardsPage() {
         >
           <div className="flex items-center gap-2 mb-2">
             {w.article && (
-              <span className="text-xl text-muted-foreground">{w.article}&nbsp;</span>
+              <span className={`text-xl ${GENDER_CLASS[w.article] ?? "text-muted-foreground"}`}>
+                {w.article}&nbsp;
+              </span>
             )}
             <span className="text-4xl font-bold text-foreground">{w.german}</span>
             <span

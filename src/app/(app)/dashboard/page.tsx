@@ -25,6 +25,8 @@ import {
   getOpenRepairCount,
   getCurriculumDay,
   isGuest,
+  advanceDay,
+  getDayCompletion,
 } from "@/lib/db";
 import { MAX_SESSION_POINTS, LEVEL_LABELS, LEVEL_DAYS, levelProgress } from "@/lib/stars";
 import { LEVELS } from "@/lib/types";
@@ -56,6 +58,15 @@ export default function DashboardPage() {
   const [repairs, setRepairs] = useState(0);
   const [day, setDay] = useState<CurriculumDay | null>(null);
   const [guest, setGuest] = useState(false);
+  const [canAdvance, setCanAdvance] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
+
+  async function finishDay() {
+    if (!profile) return;
+    setAdvancing(true);
+    await advanceDay(profile);
+    window.location.reload();
+  }
 
   useEffect(() => {
     (async () => {
@@ -74,7 +85,10 @@ export default function DashboardPage() {
       setDue(d);
       setRepairs(r);
       setDay(c);
-      if (s) setTasks((await getSessionTasks(s.id)) as SessionTask[]);
+      if (s) {
+        setTasks((await getSessionTasks(s.id)) as SessionTask[]);
+        setCanAdvance((await getDayCompletion(s)).canAdvance);
+      }
       setLoading(false);
     })();
   }, []);
@@ -166,6 +180,32 @@ export default function DashboardPage() {
               <span className="font-medium tabular-nums">{due}</span> cards due today
             </Link>
           )}
+        </div>
+      )}
+
+      {canAdvance && (
+        <div className="flex flex-wrap items-center gap-3 mb-6 px-5 py-4 rounded-xl border border-success bg-success-bg">
+          <div className="flex-1 min-w-[240px]">
+            <p className="text-sm font-medium text-success">
+              Day {profile.current_day} is done.
+            </p>
+            <p className="text-xs text-success/80 mt-0.5">
+              Anything you scored below two stars is already queued and will come back
+              tomorrow.
+            </p>
+          </div>
+          <button
+            onClick={finishDay}
+            disabled={advancing}
+            className="flex items-center gap-2 bg-success text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+          >
+            {advancing ? (
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            )}
+            Start day {profile.current_day + 1}
+          </button>
         </div>
       )}
 
