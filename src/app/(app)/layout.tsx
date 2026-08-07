@@ -15,6 +15,7 @@ import {
   PenTool,
   Globe,
   BarChart3,
+  CalendarDays,
   ClipboardCheck,
   Zap,
   Volume2,
@@ -39,6 +40,7 @@ const navItems = [
   { href: "/writing", label: "Writing", icon: PenTool },
   { href: "/immersion", label: "Immersion", icon: Globe },
   { href: "/progress", label: "Progress", icon: BarChart3 },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/homework", label: "Homework", icon: ClipboardCheck },
 ];
 

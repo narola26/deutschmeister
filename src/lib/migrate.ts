@@ -62,21 +62,38 @@ export async function migrateGuestToAccount(
     );
   }
 
-  // Today's session, so the day's points are not counted twice.
+  // The whole calendar history, so signing up does not blank it. Each
+  // archived guest day becomes a daily_sessions row.
+  const rows = [...(g.history ?? [])].map((d) => ({
+    user_id: userId,
+    session_date: d.date,
+    level: g.current_level,
+    day_number: g.current_day,
+    points_earned: d.points,
+    stars_earned: d.stars,
+    tasks_done: d.tasks_done,
+    completed: d.completed,
+  }));
+
+  // Today's live session too, so the day's points are not counted twice.
   if (g.session_date === todayLocal() && g.session_points > 0) {
-    await supabase.from("daily_sessions").upsert(
-      {
-        user_id: userId,
-        session_date: g.session_date,
-        level: g.current_level,
-        day_number: g.current_day,
-        points_earned: g.session_points,
-        stars_earned: g.session_stars,
-        tasks_done: g.session_tasks.filter((t) => t.completed).length,
-        completed: g.session_tasks.filter((t) => t.completed).length >= 6,
-      },
-      { onConflict: "user_id,session_date", ignoreDuplicates: true }
-    );
+    const done = g.session_tasks.filter((t) => t.completed).length;
+    rows.push({
+      user_id: userId,
+      session_date: g.session_date,
+      level: g.current_level,
+      day_number: g.current_day,
+      points_earned: g.session_points,
+      stars_earned: g.session_stars,
+      tasks_done: done,
+      completed: done >= 6,
+    });
+  }
+
+  if (rows.length > 0) {
+    await supabase
+      .from("daily_sessions")
+      .upsert(rows, { onConflict: "user_id,session_date", ignoreDuplicates: true });
   }
 
   const { data: existing } = await supabase

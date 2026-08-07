@@ -30,6 +30,15 @@ export type GuestRepairItem = {
   cleared: boolean;
 };
 
+/** One archived day, so the calendar can show a real history for guests. */
+export type GuestDay = {
+  date: string;
+  points: number;
+  stars: number;
+  tasks_done: number;
+  completed: boolean;
+};
+
 export type GuestState = {
   full_name: string | null;
   current_level: Level;
@@ -54,6 +63,8 @@ export type GuestState = {
     completed: boolean;
   }[];
 
+  history: GuestDay[];
+
   vocab: Record<string, GuestWordState>;
   repair: GuestRepairItem[];
 };
@@ -75,6 +86,7 @@ function blank(): GuestState {
     session_points: 0,
     session_stars: 0,
     session_tasks: [],
+    history: [],
     vocab: {},
     repair: [],
   };
@@ -142,9 +154,53 @@ export function guestProfile(state: GuestState = loadGuest()): Profile {
 
 export { todayLocal as today } from "./dates";
 
-/** Reset the per-day counters when the calendar day rolls over. */
+/**
+ * Reset the per-day counters when the calendar day rolls over, archiving
+ * the day that just ended so the calendar keeps a real history. Without
+ * the archive step, yesterday's work would simply vanish at midnight.
+ */
 export function ensureTodaySession(state: GuestState): GuestState {
   const d = todayLocal();
   if (state.session_date === d) return state;
-  return { ...state, session_date: d, session_points: 0, session_stars: 0, session_tasks: [] };
+
+  const history = [...(state.history ?? [])];
+  if (state.session_date && state.session_points > 0) {
+    const done = state.session_tasks.filter((t) => t.completed).length;
+    history.push({
+      date: state.session_date,
+      points: state.session_points,
+      stars: state.session_stars,
+      tasks_done: done,
+      completed: done >= 6,
+    });
+  }
+
+  return {
+    ...state,
+    history,
+    session_date: d,
+    session_points: 0,
+    session_stars: 0,
+    session_tasks: [],
+  };
+}
+
+/**
+ * Every day the guest has touched, newest last — the archived history
+ * plus today's live session folded in. This is what the calendar reads.
+ */
+export function guestActivity(state: GuestState = loadGuest()): GuestDay[] {
+  const days = [...(state.history ?? [])];
+  const today = todayLocal();
+  if (state.session_date === today && state.session_points > 0) {
+    const done = state.session_tasks.filter((t) => t.completed).length;
+    days.push({
+      date: today,
+      points: state.session_points,
+      stars: state.session_stars,
+      tasks_done: done,
+      completed: done >= 6,
+    });
+  }
+  return days;
 }

@@ -11,6 +11,7 @@ import {
   loadGuest,
   saveGuest,
   guestProfile,
+  guestActivity,
   ensureTodaySession,
   type GuestState,
 } from "./guest";
@@ -559,6 +560,41 @@ export async function getOpenRepairCount(): Promise<number> {
     .eq("cleared", false);
 
   return count ?? 0;
+}
+
+export type ActivityDay = {
+  date: string;
+  points: number;
+  stars: number;
+  tasks_done: number;
+  completed: boolean;
+};
+
+/**
+ * Every day the learner has done anything, for the calendar. Works the
+ * same whether signed in (from daily_sessions) or a guest (from the
+ * archived history in localStorage).
+ */
+export async function getActivity(): Promise<ActivityDay[]> {
+  const uid = await currentUserId();
+
+  if (!uid) {
+    return guestActivity();
+  }
+
+  const { data } = await createClient()
+    .from("daily_sessions")
+    .select("session_date, points_earned, stars_earned, tasks_done, completed")
+    .eq("user_id", uid)
+    .order("session_date");
+
+  return (data ?? []).map((s) => ({
+    date: s.session_date as string,
+    points: s.points_earned as number,
+    stars: s.stars_earned as number,
+    tasks_done: s.tasks_done as number,
+    completed: s.completed as boolean,
+  }));
 }
 
 export async function getLeaderboard(limit = 20) {
