@@ -83,9 +83,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation menu"
             className="lg:hidden text-muted-foreground hover:text-foreground"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -142,9 +143,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="h-14 px-4 flex items-center border-b border-border lg:hidden bg-card">
           <button
             onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation menu"
+            aria-expanded={sidebarOpen}
             className="text-muted-foreground hover:text-foreground"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5" aria-hidden="true" />
           </button>
           <span className="ml-3 font-semibold text-foreground">DeutschMeister</span>
         </header>
