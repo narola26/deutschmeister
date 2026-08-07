@@ -8,6 +8,9 @@ import { todayLocal } from "./dates";
 // between the two without the pages knowing which is in use.
 // ============================================================
 
+// Deliberately still the old name. This key holds real guest progress in
+// people's browsers, and renaming it on the rebrand would silently wipe
+// everyone's points and review schedules.
 const KEY = "deutschmeister.guest.v1";
 
 export type GuestWordState = {

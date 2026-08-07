@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DeutschMeister — AI German Tutor",
+  title: "Sprachstufe — German from A1 to C2",
   description:
-    "Master German from A1 to B2 in 6 months with your AI-powered personal tutor. Daily lessons, vocabulary, grammar, and real conversations.",
+    "The whole road, not the first mile. Six levels, ninety minutes a night, and a star on every task that tells you the truth about what you can actually do.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

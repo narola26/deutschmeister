@@ -41,7 +41,7 @@ export async function chatWithGroq(
  * It corrects what the learner produced against rules that live in
  * the fixed content — it does not invent grammar or vocabulary.
  */
-export const SYSTEM_PROMPT = `You are DeutschMeister, an exacting but encouraging German tutor.
+export const SYSTEM_PROMPT = `You are Sprachstufe, an exacting but encouraging German tutor.
 
 Rules you never break:
 - Correct German only. If you are unsure of a gender, plural or form, say so rather than guessing.

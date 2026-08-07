@@ -62,7 +62,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-7 h-7 text-primary" />
-            <span className="text-lg font-semibold text-foreground">DeutschMeister</span>
+            <span className="text-lg font-semibold text-foreground">Sprachstufe</span>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -209,7 +209,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-5 h-5" />
-            <span>DeutschMeister</span>
+            <span>Sprachstufe</span>
           </div>
           <p>Built with AI, made in Germany</p>
         </div>
